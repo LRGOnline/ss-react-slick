@@ -304,6 +304,38 @@ export class InnerSlider extends React.Component {
       trackStyle: trackStyle
     };
   };
+
+  onClickImage = image => {
+    if (!image.onclick) {
+      image.onclick = () => image.parentNode.focus();
+    } else {
+      const prevClickHandler = image.onclick;
+      image.onclick = () => {
+        prevClickHandler();
+        image.parentNode.focus();
+      };
+    }
+  };
+
+  onLoadImage = (image, handler) => {
+    if (!image.onload) {
+      if (this.props.lazyLoad) {
+        image.onload = () => {
+          this.adaptHeight();
+          this.callbackTimers.push(
+            setTimeout(this.onWindowResized, this.props.speed)
+          );
+        };
+      } else {
+        image.onload = handler;
+        image.onerror = () => {
+          handler();
+          this.props.onLazyLoadError && this.props.onLazyLoadError();
+        };
+      }
+    }
+  };
+
   checkImagesLoad = () => {
     let images =
       (this.list &&
@@ -312,34 +344,11 @@ export class InnerSlider extends React.Component {
       [];
     let imagesCount = images.length,
       loadedCount = 0;
-    Array.prototype.forEach.call(images, image => {
-      const handler = () =>
+      let handler = () =>
         ++loadedCount && loadedCount >= imagesCount && this.onWindowResized();
-      if (!image.onclick) {
-        image.onclick = () => image.parentNode.focus();
-      } else {
-        const prevClickHandler = image.onclick;
-        image.onclick = e => {
-          prevClickHandler(e);
-          image.parentNode.focus();
-        };
-      }
-      if (!image.onload) {
-        if (this.props.lazyLoad) {
-          image.onload = () => {
-            this.adaptHeight();
-            this.callbackTimers.push(
-              setTimeout(this.onWindowResized, this.props.speed)
-            );
-          };
-        } else {
-          image.onload = handler;
-          image.onerror = () => {
-            handler();
-            this.props.onLazyLoadError && this.props.onLazyLoadError();
-          };
-        }
-      }
+      Array.prototype.forEach.call(images, image => {
+        image.onclick = this.onClickImage.bind(image);
+        image.onload = this.onLoadImage.bind(image, handler);
     });
   };
   progressiveLazyLoad = () => {
